@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>คำนวณอายุ + ราศี + ปีนักษัตร</title>
+<style>
+  :root {
+    --bg: #06090f;
+    --panel: #0c121c;
+    --panel2: #111a27;
+    --line: #1b2636;
+    --text: #dfe7f2;
+    --dim: #5f7188;
+    --cyan: #35d6ff;
+    --red: #ff4652;
+    --ok: #2fe08a;
+    --amber: #ffc44d;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    min-height: 100%;
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -10%, #0e1a2a 0%, transparent 60%),
+      var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", system-ui, sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 16px 14px 40px;
+  }
+  .app { width: 100%; max-width: 720px; display: flex; flex-direction: column; gap: 12px; }
+
+  header { padding: 6px 4px 2px; }
+  .logo { font-size: 17px; font-weight: 700; letter-spacing: 3px; }
+  .logo b { color: var(--cyan); }
+  .now { margin-top: 6px; font-size: 13px; color: var(--dim); letter-spacing: .5px; }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px;
+  }
+  .card h2 { font-size: 12px; letter-spacing: 2px; color: var(--dim); font-weight: 600; margin-bottom: 12px; }
+
+  /* ---------- form ---------- */
+  .row { display: grid; grid-template-columns: 1fr 1.6fr 1.2fr; gap: 10px; }
+  @media (max-width: 460px) { .row { grid-template-columns: 1fr 1fr; } .row .f-year { grid-column: 1 / -1; } }
+  .f label { display: block; font-size: 11px; letter-spacing: 1.5px; color: var(--dim); margin-bottom: 6px; }
+  input, select {
+    width: 100%;
+    background: var(--panel2);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 11px 12px;
+    font-size: 16px;
+    font-family: inherit;
+    outline: none;
+  }
+  input:focus, select:focus { border-color: var(--cyan); }
+  select { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--dim) 50%), linear-gradient(135deg, var(--dim) 50%, transparent 50%); background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; padding-right: 32px; }
+
+  .era { display: flex; gap: 8px; margin-top: 12px; align-items: center; flex-wrap: wrap; }
+  .era .lbl { font-size: 11px; letter-spacing: 1.5px; color: var(--dim); }
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .seg button {
+    background: var(--panel2); color: var(--dim); border: 0; font-family: inherit;
+    font-size: 13px; padding: 8px 16px; cursor: pointer; letter-spacing: 1px;
+  }
+  .seg button.on { background: var(--cyan); color: #04121a; font-weight: 700; }
+
+  .go {
+    margin-top: 14px; width: 100%;
+    background: var(--cyan); color: #04121a; border: 0; border-radius: 12px;
+    padding: 14px; font-size: 16px; font-weight: 700; font-family: inherit;
+    letter-spacing: 2px; cursor: pointer;
+  }
+  .go:active { filter: brightness(.9); }
+  .err { margin-top: 10px; color: var(--red); font-size: 13px; min-height: 18px; }
+
+  /* ---------- results ---------- */
+  #result { display: none; flex-direction: column; gap: 12px; }
+  #result.show { display: flex; }
+
+  .agegrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .tile { background: var(--panel2); border: 1px solid var(--line); border-radius: 12px; padding: 14px 8px; text-align: center; }
+  .tile .n { font-size: 34px; font-weight: 700; color: var(--cyan); line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .tile .u { font-size: 12px; color: var(--dim); letter-spacing: 2px; margin-top: 4px; }
+
+  .list { display: flex; flex-direction: column; }
+  .item { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; padding: 11px 0; border-bottom: 1px solid var(--line); }
+  .item:last-child { border-bottom: 0; }
+  .item .k { font-size: 13px; color: var(--dim); white-space: nowrap; }
+  .item .v { font-size: 15px; text-align: right; font-weight: 600; }
+  .item .v small { display: block; font-size: 12px; font-weight: 400; color: var(--dim); margin-top: 2px; }
+  .v .hi { color: var(--cyan); }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-left: 7px; vertical-align: middle; border: 1px solid #ffffff30; }
+
+  .note { font-size: 11.5px; color: var(--dim); line-height: 1.6; margin-top: 10px; }
+  .warn { font-size: 12.5px; color: var(--amber); line-height: 1.6; margin-top: 12px;
+          border: 1px solid #4a3a12; background: #1c1607; border-radius: 10px; padding: 10px 12px; }
+  footer { text-align: center; font-size: 11px; color: var(--dim); letter-spacing: 1px; padding-top: 6px; }
+  footer a { color: var(--dim); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="logo">คำนวณ<b>อายุ</b> · ราศี · ปีนักษัตร</div>
+    <div class="now" id="now">—</div>
+  </header>
+
+  <div class="card">
+    <h2>วันเกิดของคุณ</h2>
+    <div class="row">
+      <div class="f">
+        <label>วันที่</label>
+        <input id="d" type="number" inputmode="numeric" min="1" max="31" placeholder="1">
+      </div>
+      <div class="f">
+        <label>เดือน</label>
+        <select id="m"></select>
+      </div>
+      <div class="f f-year">
+        <label>ปี</label>
+        <input id="y" type="number" inputmode="numeric" placeholder="2540">
+      </div>
+    </div>
+
+    <div class="era">
+      <span class="lbl">ปีที่กรอกเป็น</span>
+      <div class="seg" id="era">
+        <button type="button" data-era="be" class="on">พ.ศ.</button>
+        <button type="button" data-era="ce">ค.ศ.</button>
+      </div>
+    </div>
+
+    <button class="go" id="go">คำนวณ</button>
+    <div class="err" id="err"></div>
+  </div>
+
+  <div id="result">
+    <div class="card">
+      <h2>อายุปัจจุบัน</h2>
+      <div class="agegrid">
+        <div class="tile"><div class="n" id="ay">0</div><div class="u">ปี</div></div>
+        <div class="tile"><div class="n" id="am">0</div><div class="u">เดือน</div></div>
+        <div class="tile"><div class="n" id="ad">0</div><div class="u">วัน</div></div>
+      </div>
+      <div class="list" style="margin-top:6px">
+        <div class="item"><span class="k">วันเกิด</span><span class="v" id="bstr">—</span></div>
+        <div class="item"><span class="k">รวมทั้งหมด</span><span class="v" id="total">—</span></div>
+        <div class="item"><span class="k">วันเกิดครั้งถัดไป</span><span class="v" id="next">—</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>ราศี · ปีนักษัตร · วันเกิด</h2>
+      <div class="list">
+        <div class="item"><span class="k">เกิดวัน</span><span class="v" id="dow">—</span></div>
+        <div class="item"><span class="k">ปีนักษัตร</span><span class="v" id="chin">—</span></div>
+        <div class="item"><span class="k">ราศี (สากล)</span><span class="v" id="zwest">—</span></div>
+        <div class="item"><span class="k">ราศี (โหราศาสตร์ไทย)</span><span class="v" id="zthai">—</span></div>
+      </div>
+      <div class="warn" id="warn" style="display:none"></div>
+      <div class="note" id="note"></div>
+    </div>
+  </div>
+
+  <footer>คำนวณในเครื่องคุณทั้งหมด ไม่มีการส่งข้อมูลออกไปที่ไหน</footer>
+</div>
+
+<script>
+/* ------------------------------------------------------------------
+   ตรรกะทั้งหมดเป็นฟังก์ชันบริสุทธิ์ และเปิดออกทาง window.AgeCalc
+   เพื่อให้ tests/age-calc.test.mjs เรียกทดสอบโค้ดชุดเดียวกับที่หน้าเว็บใช้จริง
+   ------------------------------------------------------------------ */
+(function () {
+  "use strict";
+
+  var TH_MONTHS = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน",
+                   "กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+
+  var DAYS = [
+    { name: "อาทิตย์",   color: "แดง",     hex: "#ff4652" },
+    { name: "จันทร์",    color: "เหลือง",  hex: "#ffe14d" },
+    { name: "อังคาร",    color: "ชมพู",    hex: "#ff7ab0" },
+    { name: "พุธ",       color: "เขียว",   hex: "#2fe08a" },
+    { name: "พฤหัสบดี",  color: "ส้ม",     hex: "#ff9d3d" },
+    { name: "ศุกร์",     color: "ฟ้า",     hex: "#35d6ff" },
+    { name: "เสาร์",     color: "ม่วง",    hex: "#a77bff" }
+  ];
+
+  /* ปีนักษัตร: ดัชนี = ค.ศ. mod 12  (2020 = ชวด → 2020 % 12 = 4) */
+  var ZODIAC12 = [
+    { name: "วอก",    animal: "ลิง",        emoji: "🐒" },
+    { name: "ระกา",   animal: "ไก่",        emoji: "🐓" },
+    { name: "จอ",     animal: "สุนัข",      emoji: "🐕" },
+    { name: "กุน",    animal: "หมู",        emoji: "🐖" },
+    { name: "ชวด",    animal: "หนู",        emoji: "🐁" },
+    { name: "ฉลู",    animal: "วัว",        emoji: "🐂" },
+    { name: "ขาล",    animal: "เสือ",       emoji: "🐅" },
+    { name: "เถาะ",   animal: "กระต่าย",    emoji: "🐇" },
+    { name: "มะโรง",  animal: "งูใหญ่",     emoji: "🐉" },
+    { name: "มะเส็ง", animal: "งูเล็ก",     emoji: "🐍" },
+    { name: "มะเมีย", animal: "ม้า",        emoji: "🐎" },
+    { name: "มะแม",   animal: "แพะ",        emoji: "🐐" }
+  ];
+
+  /* ราศีสากล (tropical) — d = วันแรกของราศีนั้นในเดือน m */
+  var WEST = [
+    { m: 1,  d: 20, name: "กุมภ์",  en: "Aquarius",    sym: "♒" },
+    { m: 2,  d: 19, name: "มีน",    en: "Pisces",      sym: "♓" },
+    { m: 3,  d: 21, name: "เมษ",    en: "Aries",       sym: "♈" },
+    { m: 4,  d: 20, name: "พฤษภ",  en: "Taurus",      sym: "♉" },
+    { m: 5,  d: 21, name: "เมถุน",  en: "Gemini",      sym: "♊" },
+    { m: 6,  d: 21, name: "กรกฎ",   en: "Cancer",      sym: "♋" },
+    { m: 7,  d: 23, name: "สิงห์",  en: "Leo",         sym: "♌" },
+    { m: 8,  d: 23, name: "กันย์",  en: "Virgo",       sym: "♍" },
+    { m: 9,  d: 23, name: "ตุล",    en: "Libra",       sym: "♎" },
+    { m: 10, d: 23, name: "พิจิก",  en: "Scorpio",     sym: "♏" },
+    { m: 11, d: 22, name: "ธนู",    en: "Sagittarius", sym: "♐" },
+    { m: 12, d: 22, name: "มังกร",  en: "Capricorn",   sym: "♑" }
+  ];
+
+  /* ราศีแบบโหราศาสตร์ไทย (นิรายนะ) — วันเปลี่ยนราศีโดยประมาณ */
+  var THAI = [
+    { m: 1,  d: 14, name: "มังกร" },
+    { m: 2,  d: 13, name: "กุมภ์" },
+    { m: 3,  d: 15, name: "มีน"   },
+    { m: 4,  d: 13, name: "เมษ"   },
+    { m: 5,  d: 15, name: "พฤษภ" },
+    { m: 6,  d: 15, name: "เมถุน" },
+    { m: 7,  d: 16, name: "กรกฎ"  },
+    { m: 8,  d: 17, name: "สิงห์" },
+    { m: 9,  d: 17, name: "กันย์" },
+    { m: 10, d: 17, name: "ตุล"   },
+    { m: 11, d: 16, name: "พิจิก" },
+    { m: 12, d: 16, name: "ธนู"   }
+  ];
+
+  var MAX_AGE_YEARS = 150;   /* เกินนี้ = น่าจะสลับ พ.ศ./ค.ศ. → เตือน แต่ยังแสดงผล */
+
+  /* ================= ฟังก์ชันคำนวณ (ไม่ยุ่งกับ DOM) ================= */
+
+  function pad(n) { return n < 10 ? "0" + n : "" + n; }
+
+  /* วันที่ทุกใบในหน้านี้เป็น "เที่ยงคืน UTC" ของวันตามปฏิทิน — คิดบน UTC ล้วน
+     เพื่อไม่ให้ DST หรือวันที่ถูกข้ามทั้งวันในบางเขตเวลา (เช่น 31 ธ.ค. 1994 ที่
+     Kiritimati, 30 ธ.ค. 2011 ที่ซามัว) ทำให้การนับวันเพี้ยน
+     ใช้ setUTCFullYear เพราะ new Date(y, ...) ที่ y < 100 จะถูกเหมาเป็น 19xx */
+  function makeDate(y, m, d) {
+    var dt = new Date(0);
+    dt.setUTCFullYear(y, m, d);
+    dt.setUTCHours(0, 0, 0, 0);
+    return dt;
+  }
+
+  /* วันตามปฏิทิน "ของผู้ใช้" (เวลาท้องถิ่น) → วันที่แบบ UTC ที่ใช้คำนวณ */
+  function startOfDay(dt) { return makeDate(dt.getFullYear(), dt.getMonth(), dt.getDate()); }
+
+  function daysInMonth(y, m) { return makeDate(y, m + 1, 0).getUTCDate(); }
+
+  /* จำนวนวันเต็มระหว่างสองวัน */
+  function dayDiff(a, b) { return Math.round((b.getTime() - a.getTime()) / 86400000); }
+
+  /* บวกเดือนแบบหนีบวันที่ให้อยู่ในเดือน (31 ม.ค. + 1 เดือน = 28/29 ก.พ.) */
+  function addMonths(b, n) {
+    var t = makeDate(b.getUTCFullYear(), b.getUTCMonth() + n, 1);
+    var d = Math.min(b.getUTCDate(), daysInMonth(t.getUTCFullYear(), t.getUTCMonth()));
+    return makeDate(t.getUTCFullYear(), t.getUTCMonth(), d);
+  }
+
+  /* อายุแบบ ปี/เดือน/วัน: นับจำนวนเดือนเต็มที่บวกจากวันเกิดได้โดยไม่เกินวันนี้
+     แล้วส่วนที่เหลือคือวัน — วิธียืมวันแบบตรง ๆ จะได้ค่าติดลบเมื่อวันเกิดเป็น
+     วันท้ายเดือนที่ยาวกว่าเดือนปัจจุบัน (เช่น 30 พ.ย. เทียบ 1 มี.ค.) */
+  function ageOf(b, now) {
+    var months = (now.getUTCFullYear() - b.getUTCFullYear()) * 12 + (now.getUTCMonth() - b.getUTCMonth());
+    var anchor = addMonths(b, months);
+    if (anchor > now) { months -= 1; anchor = addMonths(b, months); }
+    return { y: Math.floor(months / 12), m: months % 12, d: dayDiff(anchor, now) };
+  }
+
+  function signFrom(table, dt) {
+    var m = dt.getUTCMonth() + 1, d = dt.getUTCDate();
+    var row = table[m - 1];
+    /* ก่อนวันเปลี่ยนราศีของเดือนนี้ = ยังเป็นราศีของช่วงก่อนหน้า */
+    return d >= row.d ? row : table[(m - 2 + 12) % 12];
+  }
+
+  function zodiacYear(ceYear) { return ZODIAC12[((ceYear % 12) + 12) % 12]; }
+
+  function thaiDate(dt) {
+    return dt.getUTCDate() + " " + TH_MONTHS[dt.getUTCMonth()] + " " + (dt.getUTCFullYear() + 543);
+  }
+
+  /* ตรวจและแปลงค่าที่กรอก → วันเกิด (คืน error เป็นข้อความไทยเมื่อไม่ผ่าน) */
+  function parseBirth(dRaw, mRaw, yRaw, era, today) {
+    var d = parseInt(dRaw, 10), m = parseInt(mRaw, 10), yIn = parseInt(yRaw, 10);
+    if (!d || isNaN(m) || !yIn) return { ok: false, error: "กรุณากรอกวัน เดือน และปีให้ครบ" };
+    if (m < 0 || m > 11) return { ok: false, error: "เดือนไม่ถูกต้อง" };
+    if (d < 1 || d > 31) return { ok: false, error: "วันที่ต้องอยู่ระหว่าง 1–31" };
+
+    var year = era === "be" ? yIn - 543 : yIn;
+    if (year < 1 || year > 9999) {
+      return { ok: false, error: "ปีไม่ถูกต้อง — ตรวจว่าเลือก พ.ศ. หรือ ค.ศ. ตรงกับที่กรอก" };
+    }
+
+    var b = makeDate(year, m, d);
+    /* กันวันที่ที่ไม่มีจริง เช่น 31 กุมภาพันธ์ (JS จะเลื่อนไปเดือนถัดไปเงียบ ๆ) */
+    if (b.getUTCDate() !== d || b.getUTCMonth() !== m || b.getUTCFullYear() !== year) {
+      return { ok: false, error: "ไม่มีวันที่นี้ในปฏิทิน (" + d + " " + TH_MONTHS[m] + " " + yIn + ")" };
+    }
+    if (dayDiff(b, today) < 0) {
+      return { ok: false, error: "วันเกิดอยู่ในอนาคต — กรุณาตรวจสอบอีกครั้ง" };
+    }
+    return { ok: true, date: b };
+  }
+
+  /* ผลลัพธ์ทั้งหมดของวันเกิดหนึ่งวัน เทียบกับวันปัจจุบัน (today = เที่ยงคืนวันนี้) */
+  function compute(b, today) {
+    var age = ageOf(b, today);
+    var totalDays = dayDiff(b, today);
+    var isFeb29 = (b.getUTCMonth() === 1 && b.getUTCDate() === 29);
+
+    function bdayIn(y) {
+      /* ปีที่ไม่ใช่อธิกสุรทิน: ใช้วันสุดท้ายของเดือน (28 ก.พ.) ซึ่งเป็นวันเดียว
+         กับที่ตัวเลขอายุเพิ่มขึ้นจริง — ถ้าใช้ 1 มี.ค. ตัวนับถอยหลังจะเพี้ยนไป 1 วัน */
+      if (isFeb29 && daysInMonth(y, 1) < 29) return makeDate(y, 1, 28);
+      return makeDate(y, b.getUTCMonth(), b.getUTCDate());
+    }
+    var nb = bdayIn(today.getUTCFullYear());
+    if (dayDiff(today, nb) < 0) nb = bdayIn(today.getUTCFullYear() + 1);
+
+    var cy = b.getUTCFullYear();
+    var prevZ = zodiacYear(cy - 1);
+
+    var notes = [];
+    if (b.getUTCMonth() < 3 || (b.getUTCMonth() === 3 && b.getUTCDate() < 16)) {
+      notes.push("ปีนักษัตรด้านบนนับตามปีปฏิทิน (1 ม.ค.–31 ธ.ค.) — " +
+        "หากนับตามธรรมเนียมไทยที่เปลี่ยนนักษัตรช่วงสงกรานต์ (ราว 13–16 เม.ย.) " +
+        "หรือตามตรุษจีน วันเกิดนี้จะยังเป็นปี" + prevZ.name + " " + prevZ.emoji);
+    }
+    if (isFeb29) {
+      notes.push("เกิด 29 ก.พ. — ปีที่ไม่ใช่ปีอธิกสุรทิน หน้านี้ถือว่าอายุครบรอบในวันที่ 28 ก.พ. " +
+        "(วันสุดท้ายของเดือน) ซึ่งเป็นวันเดียวกับที่ตัวเลขอายุเพิ่มขึ้น บางที่นับเป็น 1 มี.ค. แทน");
+    }
+    notes.push("ราศีสากลใช้ช่วงวันมาตรฐาน (tropical) ส่วนราศีโหราศาสตร์ไทยใช้วันเปลี่ยนราศีโดยประมาณ " +
+      "ซึ่งขยับได้ ±1 วันในแต่ละปี หากเกิดใกล้วันเปลี่ยนราศีควรตรวจกับปฏิทินโหรของปีนั้น");
+
+    var warnings = [];
+    if (age.y > MAX_AGE_YEARS) {
+      warnings.push("อายุที่คำนวณได้ " + age.y + " ปี ซึ่งเกินช่วงอายุปกติของมนุษย์ — " +
+        "โปรดตรวจว่าปุ่ม พ.ศ./ค.ศ. ตรงกับปีที่กรอก");
+    }
+
+    return {
+      birth: b,
+      age: age,
+      totalDays: totalDays,
+      weeks: Math.floor(totalDays / 7),
+      hours: totalDays * 24,
+      totalMonths: age.y * 12 + age.m,
+      next: { date: nb, daysLeft: dayDiff(today, nb), turning: ageOf(b, nb).y },
+      isFeb29: isFeb29,
+      day: DAYS[b.getUTCDay()],
+      zodiac: zodiacYear(cy),
+      west: signFrom(WEST, b),
+      thai: signFrom(THAI, b),
+      notes: notes,
+      warnings: warnings
+    };
+  }
+
+  /* เปิดตรรกะให้ชุดทดสอบเรียกได้ (ไม่มีผลต่อการใช้งานหน้าเว็บ) */
+  window.AgeCalc = {
+    makeDate: makeDate, startOfDay: startOfDay, daysInMonth: daysInMonth,
+    dayDiff: dayDiff, addMonths: addMonths, ageOf: ageOf,
+    signFrom: signFrom, zodiacYear: zodiacYear, thaiDate: thaiDate,
+    parseBirth: parseBirth, compute: compute,
+    TH_MONTHS: TH_MONTHS, DAYS: DAYS, ZODIAC12: ZODIAC12, WEST: WEST, THAI: THAI,
+    MAX_AGE_YEARS: MAX_AGE_YEARS
+  };
+
+  /* ========================= ส่วน DOM ========================= */
+
+  var $ = function (id) { return document.getElementById(id); };
+  var dEl = $("d"), mEl = $("m"), yEl = $("y");
+  var era = "be";           /* be = พ.ศ., ce = ค.ศ. */
+  var birth = null;         /* วันเกิดที่คำนวณสำเร็จล่าสุด */
+
+  function tickNow(n) {
+    var t = startOfDay(n);
+    $("now").textContent = "วันนี้: วัน" + DAYS[t.getUTCDay()].name + "ที่ " + thaiDate(t) +
+      " · " + pad(n.getHours()) + ":" + pad(n.getMinutes()) + ":" + pad(n.getSeconds()) +
+      " น. (ค.ศ. " + n.getFullYear() + ")";
+  }
+
+  function calc() {
+    var res = parseBirth(dEl.value, mEl.value, yEl.value, era, startOfDay(new Date()));
+    $("err").textContent = res.ok ? "" : res.error;
+    if (!res.ok) return;
+    birth = res.date;
+    try { localStorage.setItem("age-calc", JSON.stringify({ d: dEl.value, m: mEl.value, y: yEl.value, era: era })); } catch (e) {}
+    render();
+  }
+
+  function render() {
+    if (!birth) return;
+    var r = compute(birth, startOfDay(new Date()));
+
+    $("ay").textContent = r.age.y;
+    $("am").textContent = r.age.m;
+    $("ad").textContent = r.age.d;
+
+    $("total").innerHTML = r.totalDays.toLocaleString("th-TH") + " วัน" +
+      "<small>" + r.weeks.toLocaleString("th-TH") + " สัปดาห์ · " +
+      r.hours.toLocaleString("th-TH") + " ชั่วโมง · " +
+      r.totalMonths.toLocaleString("th-TH") + " เดือนเต็ม</small>";
+
+    $("next").innerHTML =
+      (r.next.daysLeft === 0 ? "<span class='hi'>วันนี้! 🎉</span>"
+                             : "อีก <span class='hi'>" + r.next.daysLeft + "</span> วัน") +
+      "<small>วัน" + DAYS[r.next.date.getUTCDay()].name + "ที่ " + thaiDate(r.next.date) +
+      " · ครบ " + r.next.turning + " ปี</small>";
+
+    $("bstr").innerHTML = thaiDate(r.birth) + "<small>ค.ศ. " + r.birth.getUTCFullYear() + " · " +
+      pad(r.birth.getUTCDate()) + "/" + pad(r.birth.getUTCMonth() + 1) + "/" + r.birth.getUTCFullYear() + "</small>";
+
+    $("dow").innerHTML = "วัน" + r.day.name +
+      "<span class='dot' style='background:" + r.day.hex + "'></span>" +
+      "<small>สีประจำวันเกิด: " + r.day.color + "</small>";
+
+    $("chin").innerHTML = r.zodiac.emoji + " ปี" + r.zodiac.name +
+      "<small>ปี" + r.zodiac.animal + " · พ.ศ. " + (r.birth.getUTCFullYear() + 543) +
+      " (ค.ศ. " + r.birth.getUTCFullYear() + ")</small>";
+
+    $("zwest").innerHTML = r.west.sym + " ราศี" + r.west.name + "<small>" + r.west.en + "</small>";
+    $("zthai").innerHTML = "ราศี" + r.thai.name + "<small>ระบบนิรายนะ (โดยประมาณ)</small>";
+
+    $("warn").innerHTML = r.warnings.map(function (w) { return "⚠ " + w; }).join("<br>");
+    $("warn").style.display = r.warnings.length ? "block" : "none";
+    $("note").innerHTML = r.notes.map(function (n) { return "• " + n; }).join("<br>");
+
+    $("result").classList.add("show");
+  }
+
+  /* ---------- setup ---------- */
+
+  TH_MONTHS.forEach(function (name, i) {
+    var o = document.createElement("option");
+    o.value = i; o.textContent = name;
+    mEl.appendChild(o);
+  });
+
+  document.querySelectorAll("#era button").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      document.querySelectorAll("#era button").forEach(function (b2) { b2.classList.remove("on"); });
+      btn.classList.add("on");
+      era = btn.dataset.era;
+      yEl.placeholder = era === "be" ? "2540" : "1997";
+      if (birth) calc();
+    });
+  });
+
+  $("go").addEventListener("click", calc);
+  [dEl, mEl, yEl].forEach(function (el) {
+    el.addEventListener("keydown", function (e) { if (e.key === "Enter") calc(); });
+  });
+
+  /* คืนค่าที่กรอกไว้ครั้งก่อน */
+  mEl.selectedIndex = 0;
+  try {
+    var saved = JSON.parse(localStorage.getItem("age-calc") || "null");
+    if (saved) {
+      dEl.value = saved.d; mEl.value = saved.m; yEl.value = saved.y;
+      document.querySelectorAll("#era button").forEach(function (b2) {
+        b2.classList.toggle("on", b2.dataset.era === saved.era);
+      });
+      era = saved.era;
+      calc();
+    }
+  } catch (e) {}
+
+  /* นาฬิกา + คำนวณใหม่เมื่อข้ามวัน (เทียบวันที่จริง ไม่ใช่จับเวลาเที่ยงคืน
+     เพื่อให้ยังถูกต้องหลังเครื่องหลับหรือแท็บถูกพัก) */
+  var lastDayKey = "";
+  function tick() {
+    var n = new Date();
+    tickNow(n);
+    var key = n.getFullYear() + "-" + n.getMonth() + "-" + n.getDate();
+    if (key !== lastDayKey) { lastDayKey = key; if (birth) render(); }
+  }
+  tick();
+  setInterval(tick, 1000);
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) tick(); });
+})();
+</script>
+</body>
+</html>
