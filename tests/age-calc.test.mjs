@@ -536,7 +536,9 @@ for (const tz of TZS) {
       document.querySelector('#era button[data-era="' + era + '"]').click();
       $("go").click();
     };
-    out.hiddenAtStart = !$("result").classList.contains("show") || $("y").value !== "";
+    out.hiddenAtStart = !$("result").classList.contains("show") &&
+                        $("d").value === "" && $("y").value === "" && $("m").value === "" &&
+                        !$("d").placeholder && !$("y").placeholder;
 
     set("15", "5", "2540", "be");
     out.shown = $("result").classList.contains("show");
@@ -587,9 +589,23 @@ for (const tz of TZS) {
     out.warnShown = $("warn").style.display !== "none" && $("warn").innerText.indexOf("พ.ศ./ค.ศ.") >= 0;
     out.warnStillRenders = $("result").classList.contains("show") && $("ay").textContent !== "0";
 
-    /* localStorage: ค่าที่กรอกล่าสุดถูกบันทึก */
+    /* ต้องไม่บันทึกวันเกิดไว้ที่ใดเลย */
     set("9", "8", "2530", "be");
     out.saved = localStorage.getItem("age-calc");
+
+    /* ปุ่มล้างข้อมูล */
+    $("clear").click();
+    out.cleared = {
+      d: $("d").value, m: $("m").value, y: $("y").value,
+      shown: $("result").classList.contains("show"),
+      err: $("err").textContent,
+      eraReset: document.querySelector('#era button[data-era="be"]').classList.contains("on") &&
+                !document.querySelector('#era button[data-era="ce"]').classList.contains("on")
+    };
+    /* กดคำนวณต่อทันทีหลังล้าง ต้องขึ้นว่ากรอกไม่ครบ ไม่ใช่ผลเก่า */
+    $("go").click();
+    out.afterClearErr = $("err").textContent;
+    out.afterClearShown = $("result").classList.contains("show");
 
     /* กด Enter ในช่องปี = กดปุ่มคำนวณ */
     $("d").value = "2"; $("m").value = "3"; $("y").value = "2535";
@@ -619,7 +635,13 @@ for (const tz of TZS) {
   check(T("DOM: สลับ พ.ศ./ค.ศ. ผิดแล้วมีคำเตือน"), dom.warnShown);
   check(T("DOM: คำเตือนไม่บล็อกการแสดงผล"), dom.warnStillRenders);
   check(T("DOM: ไม่มีคำเตือนในเคสปกติ"), dom.warnHidden);
-  check(T("DOM: บันทึกค่าที่กรอกลง localStorage"), (dom.saved || "").includes('"y":"2530"'), dom.saved);
+  check(T("DOM: ไม่บันทึกวันเกิดลง localStorage"), dom.saved === null, dom.saved);
+  check(T("DOM: ปุ่มล้างข้อมูลล้างทุกช่องและซ่อนผลลัพธ์"),
+        dom.cleared.d === "" && dom.cleared.m === "" && dom.cleared.y === "" &&
+        !dom.cleared.shown && dom.cleared.err === "" && dom.cleared.eraReset, JSON.stringify(dom.cleared));
+  check(T("DOM: หลังล้างแล้วกดคำนวณ ขึ้นว่ากรอกไม่ครบ ไม่ใช่ผลเดิม"),
+        dom.afterClearErr.startsWith("กรุณากรอก") && !dom.afterClearShown,
+        dom.afterClearErr + " / shown=" + dom.afterClearShown);
   check(T("DOM: กด Enter แล้วคำนวณ"), dom.enterWorks);
 
   /* ---------------- 8b. อ่านง่าย: คอนทราสต์สีและขนาดตัวอักษร ---------------- */
@@ -711,15 +733,27 @@ for (const tz of TZS) {
         zoom.saved === "1.35" && zoom.tileAfter >= 50 && parseFloat(zoom.reset) < parseFloat(zoom.after),
         JSON.stringify(zoom));
 
-  /* โหลดหน้าใหม่ → ต้องคืนค่าที่บันทึกไว้และคำนวณให้เลย */
+  /* โหลดหน้าใหม่ → ต้องว่างเปล่าเสมอ ไม่มีข้อมูลของคนก่อนหน้าค้าง */
   await page.reload();
   const restored = await page.evaluate(() => ({
     d: document.getElementById("d").value,
+    m: document.getElementById("m").value,
     y: document.getElementById("y").value,
-    shown: document.getElementById("result").classList.contains("show"),
-    bstr: document.getElementById("bstr").innerText.split("\n")[0]
+    shown: document.getElementById("result").classList.contains("show")
   }));
-  check(T("DOM: โหลดใหม่แล้วคืนค่าที่กรอกไว้เดิม"), restored.d === "2" && restored.y === "2535" && restored.shown && restored.bstr === "2 เมษายน 2535", JSON.stringify(restored));
+  check(T("DOM: โหลดใหม่แล้วทุกช่องว่าง ไม่มีผลลัพธ์ค้าง"),
+        restored.d === "" && restored.m === "" && restored.y === "" && !restored.shown, JSON.stringify(restored));
+
+  /* ค่าเก่าจากเวอร์ชันก่อนที่เคยบันทึกไว้ ต้องถูกลบทิ้งและไม่ถูกนำมาใช้ */
+  await page.evaluate(() => localStorage.setItem("age-calc", '{"d":"9","m":"8","y":"2530","era":"be"}'));
+  await page.reload();
+  const stale = await page.evaluate(() => ({
+    d: document.getElementById("d").value,
+    shown: document.getElementById("result").classList.contains("show"),
+    left: localStorage.getItem("age-calc")
+  }));
+  check(T("DOM: ค่าเก่าที่ค้างใน localStorage ถูกลบและไม่ถูกใช้"),
+        stale.d === "" && !stale.shown && stale.left === null, JSON.stringify(stale));
 
   /* localStorage เสียหาย → ต้องไม่พัง */
   await page.evaluate(() => localStorage.setItem("age-calc", "{ไม่ใช่ JSON"));

@@ -100,8 +100,13 @@
   .seg button.on { background: var(--blue); color: #fff; border-color: var(--blue); }
   .hint { margin-top: 0.5rem; font-size: 0.95rem; color: var(--ink-soft); }
 
+  .actions { display: flex; gap: 0.6rem; margin-top: 1.1rem; }
+  .go, .clear { min-height: 3.8rem; border-radius: 0.7rem; font-family: inherit; font-weight: 700; cursor: pointer; }
+  .go { flex: 2; }
+  .clear { flex: 1; background: var(--card); color: var(--blue); border: 2px solid var(--blue); font-size: 1.15rem; }
+  .clear:active { background: var(--blue-soft); }
   .go {
-    margin-top: 1.1rem; width: 100%; min-height: 3.8rem;
+    width: 100%; min-height: 3.8rem;
     background: var(--blue); color: #fff; border: 2px solid var(--blue); border-radius: 0.7rem;
     font-size: 1.35rem; font-weight: 700; font-family: inherit; cursor: pointer;
   }
@@ -156,7 +161,7 @@
     <div class="row">
       <div class="f">
         <label>วันที่</label>
-        <input id="d" type="number" inputmode="numeric" min="1" max="31" placeholder="1">
+        <input id="d" type="number" inputmode="numeric" min="1" max="31">
       </div>
       <div class="f">
         <label>เดือน</label>
@@ -164,7 +169,7 @@
       </div>
       <div class="f f-year">
         <label>ปี</label>
-        <input id="y" type="number" inputmode="numeric" placeholder="2540">
+        <input id="y" type="number" inputmode="numeric">
       </div>
     </div>
 
@@ -177,7 +182,10 @@
       <div class="hint">ปีในบัตรประชาชนไทยเป็น พ.ศ. เช่น 2540</div>
     </div>
 
-    <button class="go" id="go">คำนวณ</button>
+    <div class="actions">
+      <button class="go" id="go">คำนวณ</button>
+      <button class="clear" id="clear" type="button">ล้างข้อมูล</button>
+    </div>
     <div class="err" id="err"></div>
   </div>
 
@@ -443,7 +451,6 @@
     $("err").textContent = res.ok ? "" : res.error;
     if (!res.ok) return;
     birth = res.date;
-    try { localStorage.setItem("age-calc", JSON.stringify({ d: dEl.value, m: mEl.value, y: yEl.value, era: era })); } catch (e) {}
     render();
   }
 
@@ -489,6 +496,9 @@
 
   /* ---------- setup ---------- */
 
+  var blank = document.createElement("option");
+  blank.value = ""; blank.textContent = "เลือกเดือน";
+  mEl.appendChild(blank);
   TH_MONTHS.forEach(function (name, i) {
     var o = document.createElement("option");
     o.value = i; o.textContent = name;
@@ -500,7 +510,6 @@
       document.querySelectorAll("#era button").forEach(function (b2) { b2.classList.remove("on"); });
       btn.classList.add("on");
       era = btn.dataset.era;
-      yEl.placeholder = era === "be" ? "2540" : "1997";
       if (birth) calc();
     });
   });
@@ -527,19 +536,24 @@
     el.addEventListener("keydown", function (e) { if (e.key === "Enter") calc(); });
   });
 
-  /* คืนค่าที่กรอกไว้ครั้งก่อน */
-  mEl.selectedIndex = 0;
-  try {
-    var saved = JSON.parse(localStorage.getItem("age-calc") || "null");
-    if (saved) {
-      dEl.value = saved.d; mEl.value = saved.m; yEl.value = saved.y;
-      document.querySelectorAll("#era button").forEach(function (b2) {
-        b2.classList.toggle("on", b2.dataset.era === saved.era);
-      });
-      era = saved.era;
-      calc();
-    }
-  } catch (e) {}
+  /* ล้างข้อมูล: กลับไปหน้าว่างเปล่าเหมือนเพิ่งเปิดเว็บ */
+  function clearAll() {
+    dEl.value = ""; yEl.value = ""; mEl.value = "";
+    birth = null;
+    $("err").textContent = "";
+    $("result").classList.remove("show");
+    document.querySelectorAll("#era button").forEach(function (b2) {
+      b2.classList.toggle("on", b2.dataset.era === "be");
+    });
+    era = "be";
+    dEl.focus();
+  }
+  $("clear").addEventListener("click", clearAll);
+
+  /* หน้านี้ไม่จำวันเกิดไว้ — เปิดมาต้องว่างเสมอ จะได้ไม่สับสนกับข้อมูลของคนก่อนหน้า
+     (ลบค่าที่เวอร์ชันก่อนเคยบันทึกไว้ทิ้งด้วย) */
+  try { localStorage.removeItem("age-calc"); } catch (e) {}
+  mEl.value = "";
 
   /* นาฬิกา + คำนวณใหม่เมื่อข้ามวัน (เทียบวันที่จริง ไม่ใช่จับเวลาเที่ยงคืน
      เพื่อให้ยังถูกต้องหลังเครื่องหลับหรือแท็บถูกพัก) */
