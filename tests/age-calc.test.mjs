@@ -622,6 +622,95 @@ for (const tz of TZS) {
   check(T("DOM: บันทึกค่าที่กรอกลง localStorage"), (dom.saved || "").includes('"y":"2530"'), dom.saved);
   check(T("DOM: กด Enter แล้วคำนวณ"), dom.enterWorks);
 
+  /* ---------------- 8b. อ่านง่าย: คอนทราสต์สีและขนาดตัวอักษร ---------------- */
+
+  checkBatch(T("คอนทราสต์สี: ตัวอักษรทุกชิ้นบนหน้าผ่านเกณฑ์ WCAG (ปกติ ≥7:1, ตัวใหญ่ ≥4.5:1)"),
+    await page.evaluate(() => {
+      /* คำนวณอัตราส่วนคอนทราสต์ตามสูตร WCAG 2.x */
+      function lum(rgb) {
+        const c = rgb.map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+        return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+      }
+      function parse(col) {
+        const m = col.match(/rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?\)/);
+        return m ? { rgb: [+m[1], +m[2], +m[3]], a: m[4] === undefined ? 1 : +m[4] } : null;
+      }
+      function bgOf(el) {
+        for (let n = el; n; n = n.parentElement) {
+          const c = parse(getComputedStyle(n).backgroundColor);
+          if (c && c.a > 0) return c.rgb;
+        }
+        return [255, 255, 255];
+      }
+      function ratio(a, b) {
+        const l1 = lum(a), l2 = lum(b);
+        return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+      }
+      const errors = []; let checked = 0;
+      const els = document.querySelectorAll("body *");
+      for (const el of els) {
+        /* เฉพาะชิ้นที่มีข้อความของตัวเองและมองเห็นได้ */
+        const own = Array.from(el.childNodes).some(n => n.nodeType === 3 && n.textContent.trim());
+        if (!own) continue;
+        const cs = getComputedStyle(el);
+        if (cs.display === "none" || cs.visibility === "hidden" || +cs.opacity === 0) continue;
+        if (!el.offsetParent && cs.position !== "fixed") continue;
+        const fg = parse(cs.color);
+        if (!fg) continue;
+        const size = parseFloat(cs.fontSize);
+        const bold = +cs.fontWeight >= 700;
+        const large = size >= 24 || (bold && size >= 18.66);
+        const need = large ? 4.5 : 7;          /* ตั้งเกณฑ์ AAA สำหรับตัวอักษรปกติ */
+        const got = ratio(fg.rgb, bgOf(el));
+        checked++;
+        if (got < need) {
+          errors.push((el.id ? "#" + el.id : el.className || el.tagName) +
+            ' "' + el.textContent.trim().slice(0, 25) + '" ' + got.toFixed(2) + ":1 ต้องการ " + need + ":1");
+        }
+        if (errors.length > 8) break;
+      }
+      return { checked, errors };
+    }), 15);
+
+  checkBatch(T("ขนาดตัวอักษร: ข้อความทุกชิ้นไม่เล็กกว่า 16px และปุ่มกดได้ไม่ต่ำกว่า 44px"),
+    await page.evaluate(() => {
+      const errors = []; let checked = 0;
+      for (const el of document.querySelectorAll("body *")) {
+        const cs = getComputedStyle(el);
+        if (cs.display === "none" || !el.offsetParent) continue;
+        const own = Array.from(el.childNodes).some(n => n.nodeType === 3 && n.textContent.trim());
+        if (own) {
+          checked++;
+          const size = parseFloat(cs.fontSize);
+          if (size < 16) errors.push((el.id ? "#" + el.id : el.className || el.tagName) + " ขนาด " + size + "px");
+        }
+        if (el.tagName === "BUTTON" || el.tagName === "INPUT" || el.tagName === "SELECT") {
+          checked++;
+          const r = el.getBoundingClientRect();
+          if (r.height < 44) errors.push((el.id || el.textContent.trim().slice(0, 10)) + " สูงแค่ " + Math.round(r.height) + "px");
+        }
+        if (errors.length > 8) break;
+      }
+      return { checked, errors };
+    }), 20);
+
+  const zoom = await page.evaluate(async () => {
+    const root = document.documentElement;
+    const before = getComputedStyle(root).fontSize;
+    const bigBtn = document.querySelector('#sizes button[data-scale="1.35"]');
+    bigBtn.click();
+    const after = getComputedStyle(root).fontSize;
+    const tileAfter = parseFloat(getComputedStyle(document.getElementById("ay")).fontSize);
+    const pressed = bigBtn.getAttribute("aria-pressed");
+    const saved = localStorage.getItem("age-calc-scale");
+    document.querySelector('#sizes button[data-scale="1"]').click();
+    return { before, after, tileAfter, pressed, saved, reset: getComputedStyle(root).fontSize };
+  });
+  check(T("ขนาดตัวอักษร: ปุ่มขยายทำงานและจำค่าไว้"),
+        parseFloat(zoom.after) > parseFloat(zoom.before) && zoom.pressed === "true" &&
+        zoom.saved === "1.35" && zoom.tileAfter >= 50 && parseFloat(zoom.reset) < parseFloat(zoom.after),
+        JSON.stringify(zoom));
+
   /* โหลดหน้าใหม่ → ต้องคืนค่าที่บันทึกไว้และคำนวณให้เลย */
   await page.reload();
   const restored = await page.evaluate(() => ({

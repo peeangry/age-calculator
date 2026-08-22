@@ -5,104 +5,134 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>คำนวณอายุ + ราศี + ปีนักษัตร</title>
 <style>
+  /* ---------------------------------------------------------------
+     ธีมสว่าง คอนทราสต์สูง ตัวอักษรใหญ่ ออกแบบให้ผู้สูงอายุอ่านง่าย
+     ทุกขนาดเป็น rem เพื่อให้ปุ่ม "ขนาดตัวอักษร" ขยายได้ทั้งหน้า
+     --------------------------------------------------------------- */
   :root {
-    --bg: #06090f;
-    --panel: #0c121c;
-    --panel2: #111a27;
-    --line: #1b2636;
-    --text: #dfe7f2;
-    --dim: #5f7188;
-    --cyan: #35d6ff;
-    --red: #ff4652;
-    --ok: #2fe08a;
-    --amber: #ffc44d;
+    --page: #eef1f6;
+    --card: #ffffff;
+    --ink: #10151c;        /* ตัวอักษรหลัก — คอนทราสต์ ~17:1 บนพื้นขาว */
+    --ink-soft: #3b4654;   /* ตัวอักษรรอง — ยังสูงกว่า 9:1 */
+    --line: #c3ccd8;
+    --blue: #0a4fa3;
+    --blue-soft: #e8f1fd;
+    --red: #b3261e;
+    --red-soft: #fdecea;
+    --amber-ink: #7a4a00;
+    --amber-soft: #fff5e0;
+    --amber-line: #d9a441;
+    font-size: 20px;
   }
+  @media (max-width: 460px) { :root { font-size: 18.5px; } }
+
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body {
-    min-height: 100%;
-    background:
-      radial-gradient(ellipse 80% 50% at 50% -10%, #0e1a2a 0%, transparent 60%),
-      var(--bg);
-    color: var(--text);
-    font-family: "Segoe UI", system-ui, sans-serif;
+    background: var(--page);
+    color: var(--ink);
+    font-family: "Sarabun", "Noto Sans Thai", "Leelawadee UI", "Thonburi", system-ui, sans-serif;
+    font-size: 1rem;
+    line-height: 1.65;
     display: flex;
     justify-content: center;
-    padding: 16px 14px 40px;
+    padding: 1rem 0.8rem 2.5rem;
+    -webkit-text-size-adjust: 100%;
   }
-  .app { width: 100%; max-width: 720px; display: flex; flex-direction: column; gap: 12px; }
+  .app { width: 100%; max-width: 34rem; display: flex; flex-direction: column; gap: 0.9rem; }
 
-  header { padding: 6px 4px 2px; }
-  .logo { font-size: 17px; font-weight: 700; letter-spacing: 3px; }
-  .logo b { color: var(--cyan); }
-  .now { margin-top: 6px; font-size: 13px; color: var(--dim); letter-spacing: .5px; }
+  /* ---------- หัวหน้าเว็บ ---------- */
+  header { padding: 0.3rem 0.2rem; }
+  .logo { font-size: 1.5rem; font-weight: 700; line-height: 1.3; }
+  .logo b { color: var(--blue); }
+  .now { margin-top: 0.4rem; font-size: 0.95rem; color: var(--ink-soft); }
 
+  .sizebar { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.8rem; }
+  .sizebar .lbl { font-size: 0.95rem; color: var(--ink-soft); }
+  .sizes { display: flex; gap: 0.4rem; }
+  .sizes button {
+    font-family: inherit; font-weight: 700; cursor: pointer;
+    background: var(--card); color: var(--blue);
+    border: 2px solid var(--line); border-radius: 0.6rem;
+    min-width: 3rem; min-height: 2.6rem; padding: 0 0.7rem;
+  }
+  .sizes button[aria-pressed="true"] { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .sizes button:nth-child(1) { font-size: 0.95rem; }
+  .sizes button:nth-child(2) { font-size: 1.15rem; }
+  .sizes button:nth-child(3) { font-size: 1.35rem; }
+
+  /* ---------- การ์ด ---------- */
   .card {
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    padding: 16px;
+    background: var(--card);
+    border: 2px solid var(--line);
+    border-radius: 1rem;
+    padding: 1.1rem;
   }
-  .card h2 { font-size: 12px; letter-spacing: 2px; color: var(--dim); font-weight: 600; margin-bottom: 12px; }
+  .card h2 {
+    font-size: 1.15rem; font-weight: 700; color: var(--ink);
+    margin-bottom: 0.9rem; padding-bottom: 0.6rem; border-bottom: 2px solid var(--line);
+  }
 
-  /* ---------- form ---------- */
-  .row { display: grid; grid-template-columns: 1fr 1.6fr 1.2fr; gap: 10px; }
-  @media (max-width: 460px) { .row { grid-template-columns: 1fr 1fr; } .row .f-year { grid-column: 1 / -1; } }
-  .f label { display: block; font-size: 11px; letter-spacing: 1.5px; color: var(--dim); margin-bottom: 6px; }
+  /* ---------- ฟอร์ม ---------- */
+  .row { display: grid; grid-template-columns: 1fr 1.5fr; gap: 0.7rem; }
+  .row .f-year { grid-column: 1 / -1; }
+  .f label { display: block; font-size: 1rem; font-weight: 700; color: var(--ink); margin-bottom: 0.35rem; }
   input, select {
-    width: 100%;
-    background: var(--panel2);
-    border: 1px solid var(--line);
-    color: var(--text);
-    border-radius: 10px;
-    padding: 11px 12px;
-    font-size: 16px;
-    font-family: inherit;
-    outline: none;
+    width: 100%; min-height: 3.2rem;
+    background: var(--card); color: var(--ink);
+    border: 2px solid #8e9aa9; border-radius: 0.6rem;
+    padding: 0.6rem 0.7rem;
+    font-size: 1.25rem; font-family: inherit; font-weight: 600;
   }
-  input:focus, select:focus { border-color: var(--cyan); }
-  select { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--dim) 50%), linear-gradient(135deg, var(--dim) 50%, transparent 50%); background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; padding-right: 32px; }
+  input::placeholder { color: #7b8694; font-weight: 400; }
+  input:focus, select:focus, button:focus-visible {
+    outline: 4px solid #f0a500; outline-offset: 2px; border-color: var(--blue);
+  }
+  select { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--ink) 50%), linear-gradient(135deg, var(--ink) 50%, transparent 50%); background-position: calc(100% - 1.15rem) 55%, calc(100% - 0.75rem) 55%; background-size: 0.45rem 0.45rem, 0.45rem 0.45rem; background-repeat: no-repeat; padding-right: 2rem; }
 
-  .era { display: flex; gap: 8px; margin-top: 12px; align-items: center; flex-wrap: wrap; }
-  .era .lbl { font-size: 11px; letter-spacing: 1.5px; color: var(--dim); }
-  .seg { display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .era { margin-top: 1rem; }
+  .era .lbl { display: block; font-size: 1rem; font-weight: 700; margin-bottom: 0.4rem; }
+  .seg { display: flex; gap: 0.5rem; }
   .seg button {
-    background: var(--panel2); color: var(--dim); border: 0; font-family: inherit;
-    font-size: 13px; padding: 8px 16px; cursor: pointer; letter-spacing: 1px;
+    flex: 1; font-family: inherit; font-size: 1.15rem; font-weight: 700; cursor: pointer;
+    min-height: 3.2rem; border-radius: 0.6rem;
+    background: var(--card); color: var(--blue); border: 2px solid var(--line);
   }
-  .seg button.on { background: var(--cyan); color: #04121a; font-weight: 700; }
+  .seg button.on { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .hint { margin-top: 0.5rem; font-size: 0.95rem; color: var(--ink-soft); }
 
   .go {
-    margin-top: 14px; width: 100%;
-    background: var(--cyan); color: #04121a; border: 0; border-radius: 12px;
-    padding: 14px; font-size: 16px; font-weight: 700; font-family: inherit;
-    letter-spacing: 2px; cursor: pointer;
+    margin-top: 1.1rem; width: 100%; min-height: 3.8rem;
+    background: var(--blue); color: #fff; border: 2px solid var(--blue); border-radius: 0.7rem;
+    font-size: 1.35rem; font-weight: 700; font-family: inherit; cursor: pointer;
   }
-  .go:active { filter: brightness(.9); }
-  .err { margin-top: 10px; color: var(--red); font-size: 13px; min-height: 18px; }
+  .go:active { background: #073c7d; }
+  .err { margin-top: 0.8rem; font-size: 1.05rem; font-weight: 700; color: var(--red); }
+  .err:not(:empty) { background: var(--red-soft); border: 2px solid var(--red); border-radius: 0.6rem; padding: 0.7rem 0.8rem; }
 
-  /* ---------- results ---------- */
-  #result { display: none; flex-direction: column; gap: 12px; }
+  /* ---------- ผลลัพธ์ ---------- */
+  #result { display: none; flex-direction: column; gap: 0.9rem; }
   #result.show { display: flex; }
 
-  .agegrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-  .tile { background: var(--panel2); border: 1px solid var(--line); border-radius: 12px; padding: 14px 8px; text-align: center; }
-  .tile .n { font-size: 34px; font-weight: 700; color: var(--cyan); line-height: 1.1; font-variant-numeric: tabular-nums; }
-  .tile .u { font-size: 12px; color: var(--dim); letter-spacing: 2px; margin-top: 4px; }
+  .agegrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }
+  .tile { background: var(--blue-soft); border: 2px solid var(--blue); border-radius: 0.8rem; padding: 0.9rem 0.3rem; text-align: center; }
+  .tile .n { font-size: 2.8rem; font-weight: 700; color: var(--blue); line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .tile .u { font-size: 1.05rem; font-weight: 700; color: var(--ink); margin-top: 0.2rem; }
 
-  .list { display: flex; flex-direction: column; }
-  .item { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; padding: 11px 0; border-bottom: 1px solid var(--line); }
+  .list { display: flex; flex-direction: column; margin-top: 0.4rem; }
+  .item { padding: 0.85rem 0; border-bottom: 2px solid var(--line); }
   .item:last-child { border-bottom: 0; }
-  .item .k { font-size: 13px; color: var(--dim); white-space: nowrap; }
-  .item .v { font-size: 15px; text-align: right; font-weight: 600; }
-  .item .v small { display: block; font-size: 12px; font-weight: 400; color: var(--dim); margin-top: 2px; }
-  .v .hi { color: var(--cyan); }
-  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-left: 7px; vertical-align: middle; border: 1px solid #ffffff30; }
+  .item .k { display: block; font-size: 1rem; color: var(--ink-soft); margin-bottom: 0.15rem; }
+  .item .v { display: block; font-size: 1.3rem; font-weight: 700; color: var(--ink); }
+  .item .v small { display: block; font-size: 1rem; font-weight: 400; color: var(--ink-soft); margin-top: 0.15rem; }
+  .v .hi { color: var(--blue); }
+  .dot { display: inline-block; width: 1.1rem; height: 1.1rem; border-radius: 50%; margin-left: 0.5rem; vertical-align: -0.1rem; border: 2px solid var(--ink); }
 
-  .note { font-size: 11.5px; color: var(--dim); line-height: 1.6; margin-top: 10px; }
-  .warn { font-size: 12.5px; color: var(--amber); line-height: 1.6; margin-top: 12px;
-          border: 1px solid #4a3a12; background: #1c1607; border-radius: 10px; padding: 10px 12px; }
-  footer { text-align: center; font-size: 11px; color: var(--dim); letter-spacing: 1px; padding-top: 6px; }
-  footer a { color: var(--dim); }
+  .warn {
+    font-size: 1.05rem; font-weight: 600; color: var(--amber-ink); line-height: 1.6; margin-top: 1rem;
+    border: 2px solid var(--amber-line); background: var(--amber-soft); border-radius: 0.7rem; padding: 0.8rem 0.9rem;
+  }
+  .note { font-size: 0.95rem; color: var(--ink-soft); line-height: 1.75; margin-top: 1rem; }
+  footer { text-align: center; font-size: 0.95rem; color: var(--ink-soft); padding-top: 0.5rem; }
 </style>
 </head>
 <body>
@@ -111,6 +141,14 @@
   <header>
     <div class="logo">คำนวณ<b>อายุ</b> · ราศี · ปีนักษัตร</div>
     <div class="now" id="now">—</div>
+    <div class="sizebar">
+      <span class="lbl">ขนาดตัวอักษร</span>
+      <div class="sizes" id="sizes">
+        <button type="button" data-scale="1" aria-pressed="true">ก</button>
+        <button type="button" data-scale="1.15" aria-pressed="false">ก</button>
+        <button type="button" data-scale="1.35" aria-pressed="false">ก</button>
+      </div>
+    </div>
   </header>
 
   <div class="card">
@@ -136,6 +174,7 @@
         <button type="button" data-era="be" class="on">พ.ศ.</button>
         <button type="button" data-era="ce">ค.ศ.</button>
       </div>
+      <div class="hint">ปีในบัตรประชาชนไทยเป็น พ.ศ. เช่น 2540</div>
     </div>
 
     <button class="go" id="go">คำนวณ</button>
@@ -465,6 +504,23 @@
       if (birth) calc();
     });
   });
+
+  /* ขนาดตัวอักษรทั้งหน้า — ทุกหน่วยเป็น rem จึงขยายพร้อมกันทั้งหมด */
+  var BASE_PX = 20;
+  function applyScale(scale) {
+    document.documentElement.style.fontSize = (BASE_PX * scale) + "px";
+    document.querySelectorAll("#sizes button").forEach(function (b2) {
+      b2.setAttribute("aria-pressed", b2.dataset.scale === String(scale) ? "true" : "false");
+    });
+    try { localStorage.setItem("age-calc-scale", String(scale)); } catch (e) {}
+  }
+  document.querySelectorAll("#sizes button").forEach(function (btn) {
+    btn.addEventListener("click", function () { applyScale(Number(btn.dataset.scale)); });
+  });
+  try {
+    var savedScale = Number(localStorage.getItem("age-calc-scale"));
+    if (savedScale === 1.15 || savedScale === 1.35) applyScale(savedScale);
+  } catch (e) {}
 
   $("go").addEventListener("click", calc);
   [dEl, mEl, yEl].forEach(function (el) {
